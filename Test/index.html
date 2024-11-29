@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lua Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input, button {
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        .response {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+
+        .products-list {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f1f1f1;
+        }
+
+        .product-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-bottom: 1px solid #ccc;
+        }
+
+        .product-item:last-child {
+            border-bottom: none;
+        }
+
+        .product-title {
+            font-weight: bold;
+        }
+
+        .product-detail {
+            margin: 5px 0;
+        }
+
+        .image-container {
+            width: 300px;
+            height: 300px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Test Lua Server with Command and ID</h1>
+    
+    <label for="command">Enter Command:</label>
+    <input type="text" id="command" placeholder="Enter Command (e.g., getImage)">
+    
+    <label for="id">Enter ID:</label>
+    <input type="text" id="id" placeholder="Enter ID (e.g., 12345)">
+
+    <label for="text">Enter Text:</label>
+    <input type="text" id="text" placeholder="Type in text for the `getText` command">
+    
+    <button onclick="sendRequest()">Send Request</button>
+    
+    <div class="response" id="responseArea"></div>
+
+    <script>
+        function sendRequest() {
+            var command = document.getElementById("command").value;
+            var id = document.getElementById("id").value;
+            var text = document.getElementById("text").value;
+    
+            if (!command) {
+                document.getElementById("responseArea").innerText = "Error: Command is required!";
+                return;
+            }
+            var url = `http://localhost:8080/command?Command=${encodeURIComponent(command)}&ID=${encodeURIComponent(id)}&Text=${encodeURIComponent(text)}`;
+    
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+                xhr.responseType = 'text';
+    
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var contentType = xhr.getResponseHeader("Content-Type");
+    
+                        if (command === "findProducts") {
+                            try {
+                                var responseJSON = JSON.parse(xhr.responseText);
+                                renderProductList(responseJSON);
+                            } catch (e) {
+                                document.getElementById("responseArea").innerText = "Error: Invalid response for findProducts.";
+                            }
+                        } else if (contentType.includes("image")) {
+                            var xhrImage = new XMLHttpRequest();
+                            xhrImage.open("GET", url, true);
+                            xhrImage.responseType = 'blob';
+    
+                            xhrImage.onreadystatechange = function () {
+                                if (xhrImage.readyState === 4 && xhrImage.status === 200) {
+                                    var img = new Image();
+                                    img.onload = function() {
+                                        var container = document.createElement('div');
+                                        container.classList.add('image-container');
+                                        container.appendChild(img);
+                                        document.getElementById("responseArea").innerHTML = '';
+                                        document.getElementById("responseArea").appendChild(container);
+                                    };
+                                    img.src = URL.createObjectURL(xhrImage.response);
+                                }
+                            };
+                            xhrImage.send();
+                        } else {
+                            try {
+                                var responseJSON = JSON.parse(xhr.responseText);
+                                document.getElementById("responseArea").innerText = JSON.stringify(responseJSON, null, 2);
+                            } catch (e) {
+                                document.getElementById("responseArea").innerText = xhr.responseText;
+                            }
+                        }
+                    } else {
+                        document.getElementById("responseArea").innerText = `Error: ${xhr.status} - ${xhr.statusText}`;
+                    }
+                }
+            };
+    
+            xhr.send();
+        }
+
+        function renderProductList(products) {
+            if (!Array.isArray(products)) {
+                document.getElementById("responseArea").innerText = "Error: Response is not a valid product list.";
+                return;
+            }
+
+            var responseArea = document.getElementById("responseArea");
+            responseArea.innerHTML = ''; // Clear previous response
+
+            var listContainer = document.createElement('div');
+            listContainer.classList.add('products-list');
+
+            products.forEach((product, index) => {
+                var item = document.createElement('div');
+                item.classList.add('product-item');
+
+                var title = document.createElement('div');
+                title.classList.add('product-title');
+                title.textContent = `${index + 1}. Naam: ${product.Naam}`;
+
+                var detail = document.createElement('div');
+                detail.classList.add('product-detail');
+                detail.textContent = `FotoID: ${product.FotoID}`;
+
+                item.appendChild(title);
+                item.appendChild(detail);
+                listContainer.appendChild(item);
+            });
+
+            responseArea.appendChild(listContainer);
+        }
+    </script>
+    
+</body>
+</html>
